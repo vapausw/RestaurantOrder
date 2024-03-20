@@ -10,10 +10,7 @@ import (
 )
 
 // DSN（Data Source Name）格式：用户名:密码@协议(地址:端口)/数据库名
-// dsn := "user:password@tcp(localhost:3306)/dbname?charset=utf8"
-const (
-	dsn string = "wby:YJjt2245!@tcp(192.168.30.128:3306)/RestaurantOrder?charset=utf8"
-)
+const dsn string = "user:password@tcp(localhost:3306)/dbname?charset=utf8" //自行修改为可用数据库
 
 type MysqlData struct {
 	db *sql.DB
