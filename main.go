@@ -7,7 +7,6 @@ import (
 	"RestaurantOrder/router"
 	"RestaurantOrder/setting"
 	"fmt"
-	"github.com/golang/groupcache"
 	"go.uber.org/zap"
 	"os"
 )
@@ -52,8 +51,8 @@ func main() {
 		return
 	}
 	//启动 HTTP 池, 用于节点间通信
-	peers := groupcache.NewHTTPPool("http://myserver:8000")
-	peers.Set("http://myserver:8000", "http://otherserver:8000")
+	//peers := groupcache.NewHTTPPool("http://myserver:8000")
+	//peers.Set("http://myserver:8000", "http://otherserver:8000")
 	// 注册路由
 	r := router.SetupRouter()
 	if err := r.Run(fmt.Sprintf(":%d", setting.Conf.Port)); err != nil {

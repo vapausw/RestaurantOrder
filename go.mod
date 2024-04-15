@@ -7,7 +7,9 @@ require (
 	github.com/go-redis/redis v6.15.9+incompatible
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.1
 	github.com/natefinch/lumberjack v2.0.0+incompatible
+	github.com/wechatpay-apiv3/wechatpay-go v0.2.18
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.22.0
 	gopkg.in/ini.v1 v1.67.0

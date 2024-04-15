@@ -12,10 +12,10 @@ Restaurant/
 ├── conf/ // 项目需要进行配置的一些信息
 │ └──config.ini // 具体配置文件
 │
-├── controller/             // 路由控制层
+├── controller/ // 路由控制层
 │ ├── customerController.go // 用户的路由控制
 │ ├── menuController.go // 用户点餐的路由控制
-│ ├── orderController.go   // 订单的路由控制，商户以及用户一致
+│ ├── orderController.go // 订单的路由控制，商户以及用户一致
 │ └── productController.go // 商户对于餐品的路由控制
 │
 ├── dao/ // 数据库操作层
@@ -27,10 +27,11 @@ Restaurant/
 │
 ├── log/ //日志配置以及日志存储位置
 │ ├── logger.go //配置zap库用于日志记录，还支持自动分割日志
-│ └──           // 其余位置存储项目日志
+│ └── // 其余位置存储项目日志
 │
 ├── logic/ //逻辑控制层
 │ ├── logic.go // 此处主要实现登录以及注册的逻辑
+│ ├── wechatApi.go // 此处主要实现微信支付api的调用，但是由于无法开通微信商户，故只写了一个简单的模拟，且需要在微信支付的时候进行修改
 │ └── order.go // 实现点餐以及订单生成的逻辑
 │
 ├── models/ // 存储数据模型以及对应的CRUD操作
@@ -58,9 +59,9 @@ Restaurant/
 ├── utils/ //项目中所用到的一些公用工具
 │ └── utils.go // 公共工具
 │
-├── go.mod  // 包的管理
+├── go.mod // 包的管理
 ├── main.go // 项目入口
-├── LICENSE   // 项目许可证
+├── LICENSE // 项目许可证
 └── README.md // 项目概述和使用说明
 
 ```
@@ -113,7 +114,11 @@ Restaurant/
 - 使用Docker部署
 
 ## 项目展示
-
+- 本项目后端测试使用postman进行测试
+![1.png](./static/image/1.png)
+![2.png](./static/image/2.png)
+![3.png](./static/image/3.png)
+![4.png](static/image/4.png)
 ## 项目总结
 **使用Gin框架搭建后端API用于处理用户或者商户的登录，订单管理等任务。使用
 Gorm框架 + MySQL数据库进行数据持久化处理， 并且使用Redis实现餐品销

@@ -18,7 +18,7 @@ type Merchant struct {
 	OperatingStatus  string    // 状态
 	OperatingHours   string    // 营业时间
 	RegistrationTime time.Time // 注册时间
-	Menu             []Product `gorm:"foreignKey:MerchantID"` // 关联菜单
+	//Menu             []Product `gorm:"foreignKey:MerchantEmail"` // 关联菜单
 }
 
 // 数据库的一些操作

@@ -8,11 +8,11 @@ import (
 // Order 订单信息
 type Order struct {
 	OrderID       string      `gorm:"type:varchar(255);primaryKey"` // 订单ID
-	MerchantName  string      // 商家名
-	CustomerName  string      // 用户名
-	CustomerEmail string      // 用户邮箱
-	MerchantEmail string      // 商家邮箱
-	Status        string      // 订单状态
+	MerchantName  string      `json:"merchant_name"`                // 商家名
+	CustomerName  string      `json:"customer_name"`                // 用户名
+	CustomerEmail string      `json:"customer_email"`               // 用户邮箱
+	MerchantEmail string      `json:"merchant_email"`               // 商家邮箱
+	Status        string      `json:"status"`                       // 订单状态
 	OrderTime     time.Time   // 下单时间
 	Items         []OrderItem `gorm:"foreignKey:OrderID"` // 订单项，指定外键
 	TotalPrice    float64     // 订单总价
@@ -26,7 +26,7 @@ type OrderItem struct {
 	ProductID   uint    // 商品ID
 	Quantity    int     // 商品数量
 	UnitPrice   float64 // 商品单价
-	OrderID     string  `gorm:"type:varchar(255);index"` // 关联到 Order 的外键
+	OrderID     string  `gorm:"foreignKey:OrderID"` // 订单ID
 }
 
 // CreateOrder 1.创建一个新的订单信息

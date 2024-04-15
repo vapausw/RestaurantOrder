@@ -1,6 +1,9 @@
 package models
 
-import "RestaurantOrder/dao"
+import (
+	"RestaurantOrder/dao"
+	"github.com/go-redis/redis"
+)
 
 type Product struct {
 	ID            uint    `gorm:"primarykey" json:"id"` // 商品ID
@@ -10,14 +13,29 @@ type Product struct {
 	ProductType   string  `json:"productType"`          // 类型
 	Stock         int     `json:"stock"`                // 库存
 	Sales         int     //销量
-	MerchantEmail string  // 外键
+	MerchantEmail string  `gorm:"index"` // 指明这是外键/
 }
 
 // CreateProduct 1.创建一个新的商品信息
 func CreateProduct(product *Product) error {
-	// 将商品名和销量存入以商家主键命名的排序集合
-	//dao.Rdb.ZAdd(product.MerchantEmail, &dao.Z{Score: float64(product.Sales), Member: product.Name})
-	return dao.DB.Create(&product).Error
+	// 首先, 将商品信息存入数据库
+	err := dao.DB.Create(&product).Error
+	if err != nil {
+		return err
+	}
+
+	// 使用商家的邮箱作为key, 将商品名和销量存入Redis的排序集合
+	// 这里假设 `dao.Rdb` 是Redis连接的实例, `Z` 是结构体用于表示成员和分数
+	score := float64(product.Sales) // 将销量作为排序分数
+	member := product.Name          // 商品名作为成员
+	key := product.MerchantEmail    // 使用商家邮箱作为排序集名称
+
+	// 将商品名和销量加入到Redis排序集合
+	dao.Rdb.ZAdd(key, redis.Z{Score: score, Member: member})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // GetProductByID 2.根据商品ID查找某一个商品信息

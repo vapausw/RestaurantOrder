@@ -26,7 +26,7 @@ func SetupRouter() *gin.Engine {
 			userIndex.GET("/", controller.GETIndexHandler)
 			userIndex.GET("/menu", controller.GETMenuHandler)   // 查看菜单
 			userIndex.POST("menu", controller.CPOSTMenuHandler) // 点餐
-			userIndex.GET("/order")                             // 查看订单
+			userIndex.GET("/order", controller.GETOrderHandler) // 查看订单
 		}
 	}
 	// 商户组
@@ -43,7 +43,7 @@ func SetupRouter() *gin.Engine {
 			merchantIndex.POST("menu", controller.MPOSTMenuHandler)          // 添加菜品
 			merchantIndex.PUT("/menu/:id", controller.MPUTMenuHandler)       // 更新菜品
 			merchantIndex.DELETE("/menu/:id", controller.MDELETEMenuHandler) // 删除菜品
-			merchantIndex.GET("/order")                                      // 查看所有订单信息
+			merchantIndex.GET("/order", controller.GETOrderHandler)          // 查看所有订单信息
 		}
 	}
 	return r

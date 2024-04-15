@@ -44,6 +44,14 @@ func GETMenuHandler(c *gin.Context) {
 
 // CPOSTMenuHandler 客户点餐控制
 func CPOSTMenuHandler(c *gin.Context) {
+	var order []models.OrderItem
+	if err := c.BindJSON(&order); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// 生成订单
+	// 支付
+	// 将订单信息存储
 	c.JSON(http.StatusOK, gin.H{
 		"message": "POST order",
 		"status":  "success",
