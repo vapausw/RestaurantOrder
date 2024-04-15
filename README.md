@@ -10,7 +10,7 @@
 Restaurant/
 │
 ├── conf/ // 项目需要进行配置的一些信息
-│ └──config.ini // 具体配置文件，目前处于开发阶段有信息所以尚未上传
+│ └──config.ini // 具体配置文件
 │
 ├── controller/             // 路由控制层
 │ ├── customerController.go // 用户的路由控制
