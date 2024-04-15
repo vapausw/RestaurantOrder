@@ -2,6 +2,7 @@ package controller
 
 import (
 	"RestaurantOrder/logic"
+	"RestaurantOrder/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -77,7 +78,11 @@ func POSTRegisterHandler(c *gin.Context) {
 			})
 		}
 	case "register":
-		err := logic.RegisterCheck(r.Email, r.Captcha, r.PassWord, r.RepeatPassWord, r.Name, "customer")
+		var v models.Customer
+		v.Email = r.Email
+		v.Password = r.PassWord
+		v.Name = r.Name
+		err := logic.RegisterCheck(r.RepeatPassWord, r.Captcha, v)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"error": err.Error(),

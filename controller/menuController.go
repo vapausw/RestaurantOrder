@@ -8,9 +8,11 @@ import (
 	"net/http"
 )
 
+// GETMenuHandler 获取某个商家的所有所有菜品
 func GETMenuHandler(c *gin.Context) {
+	name := c.PostForm("name")
 	// 从 Redis 获取按销量排序的商品ID
-	productIDs, err := dao.Rdb.ZRevRange("product_sales", 0, -1).Result()
+	productIDs, err := dao.Rdb.ZRevRange(fmt.Sprintf("%s_ids", name), 0, -1).Result()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get product IDs from Redis"})
 		return
@@ -40,7 +42,8 @@ func GETMenuHandler(c *gin.Context) {
 	})
 }
 
-func POSTMenuHandler(c *gin.Context) {
+// CPOSTMenuHandler 客户点餐控制
+func CPOSTMenuHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "POST order",
 		"status":  "success",

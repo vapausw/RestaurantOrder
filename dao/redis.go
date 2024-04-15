@@ -9,6 +9,11 @@ var (
 	Rdb *redis.Client
 )
 
+type Z struct {
+	Score  float64
+	Member string
+}
+
 func InitRedis(config *setting.RedisConfig) {
 	// TODO
 	Rdb = redis.NewClient(&redis.Options{

@@ -60,3 +60,24 @@ func main() {
 		fmt.Printf("server startup failed, err:%v\n", err)
 	}
 }
+
+/*
+port = 9090
+release = false
+[email]
+email = //输入你自己的邮箱
+password = // 需要开启SMTP服务
+
+[mysql]
+user =
+password =
+host =
+port =
+db =
+
+[redis]
+addr =
+password = ""
+db = 0
+pool_size = 20 //链接池数量
+*/

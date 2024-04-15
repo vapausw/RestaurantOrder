@@ -33,35 +33,37 @@ func RegisterSendCode(email string) error {
 	return utils.SendEmail(email, token)
 }
 
-func RegisterCheck(email, token, password, repeatPassword, name, modelsType string) error {
-	if password != repeatPassword {
-		return errors.New("passwords do not match")
-	}
-	if token != dao.Rdb.Get(email).Val() {
-		return errors.New("incorrect token")
-	}
-	// 将密码加密后将数据保存到mysql数据库中
-	hashedPassword, err := utils.HashPassword(password)
-	if err != nil {
-		return err
-	}
-	switch modelsType {
-	case "customer":
-		customer := models.Customer{
-			Name:     name,
-			Email:    email,
-			Password: hashedPassword,
+func RegisterCheck(repeatPassword, token string, v interface{}) error {
+	switch x := v.(type) {
+	case models.Customer:
+		if x.Password != repeatPassword {
+			return errors.New("passwords do not match")
 		}
-		models.CreateCustomer(&customer)
-	case "merchant":
-		merchant := models.Merchant{
-			Name:     name,
-			Email:    email,
-			Password: hashedPassword,
+		if token != dao.Rdb.Get(x.Email).Val() {
+			return errors.New("incorrect token")
 		}
-		models.CreateMerchant(&merchant)
-	default:
-		return errors.New("type assertion failed")
+		// 将密码加密后将数据保存到mysql数据库中
+		hashedPassword, err := utils.HashPassword(x.Password)
+		if err != nil {
+			return err
+		}
+		x.Password = hashedPassword
+		models.CreateCustomer(&x)
+	case models.Merchant:
+		if x.Password != repeatPassword {
+			return errors.New("passwords do not match")
+		}
+		if token != dao.Rdb.Get(x.Email).Val() {
+			return errors.New("incorrect token")
+		}
+		// 将密码加密后将数据保存到mysql数据库中
+		hashedPassword, err := utils.HashPassword(x.Password)
+		if err != nil {
+			return err
+		}
+		x.Password = hashedPassword
+		x.RegistrationTime = time.Now()
+		models.CreateMerchant(&x)
 	}
 	return nil
 }
