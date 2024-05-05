@@ -46,6 +46,7 @@ func SetUserPassword(email string, user *model.UserLogin, expiration time.Durati
 		zap.L().Error("rdb.HMSet(key, data).Result() failed", zap.Error(err))
 		return co.ErrServerBusy
 	}
+	err = rdb.Expire(key, expiration).Err()
 	return nil
 }
 
@@ -56,7 +57,15 @@ func SetUserCode(email, code string) error {
 
 func GetUserCode(email string) (string, error) {
 	key := strings.Join([]string{co.RedisUserCodeKey, email}, "")
-	return rdb.Get(key).Result()
+	res, err := rdb.Get(key).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", co.ErrNotFound
+	}
+	if err != nil {
+		zap.L().Error("rdb.Get(key).Result() failed", zap.Error(err))
+		return "", co.ErrServerBusy
+	}
+	return res, err
 }
 
 func DelUserPassword(email string) error {

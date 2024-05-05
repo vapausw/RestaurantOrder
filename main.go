@@ -4,6 +4,7 @@ import (
 	"RestaurantOrder/dao/mysql"
 	"RestaurantOrder/dao/redis"
 	"RestaurantOrder/log"
+	"RestaurantOrder/pkg/kafka"
 	"RestaurantOrder/pkg/snowflake"
 	"RestaurantOrder/router"
 	"RestaurantOrder/setting"
@@ -49,6 +50,9 @@ func main() {
 		zap.L().Error("init failed, err: %v\n", zap.Error(err))
 		return
 	}
+	// 初始化kafka
+	ctx := context.Background()
+	go kafka.StartEmailConsumer(ctx)
 	// 注册路由
 	// 初始化路由
 	r := router.Init(setting.Conf.Mode)

@@ -4,7 +4,10 @@ import (
 	co "RestaurantOrder/constant"
 	"RestaurantOrder/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	"github.com/juju/ratelimit"
+	"net/http"
 	"strings"
+	"time"
 )
 
 // JWTAuthMiddleware 基于JWT的认证中间件
@@ -36,5 +39,16 @@ func JWTAuthMiddleware() func(c *gin.Context) {
 		// 将当前请求的username信息保存到请求的上下文c上
 		c.Set(co.ContextUserIDKey, mc.UserID)
 		c.Next() // 后续的处理函数可以用过c.Get("user_id")来获取当前请求的用户信息
+	}
+}
+func RateLimitMiddleware(fillInterval time.Duration, cap, quantum int64) func(c *gin.Context) {
+	bucket := ratelimit.NewBucketWithQuantum(fillInterval, cap, quantum)
+	return func(c *gin.Context) {
+		if bucket.TakeAvailable(1) < 1 {
+			c.String(http.StatusForbidden, "rate limit...")
+			c.Abort()
+			return
+		}
+		c.Next()
 	}
 }

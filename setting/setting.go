@@ -55,7 +55,9 @@ type RedisConfig struct {
 }
 
 type MyKafkaConfig struct {
-	Brokers []string `mapstructure:"brokers"`
+	Brokers      []string `mapstructure:"brokers"`
+	EmailTopic   string   `mapstructure:"email_topic"`
+	EmailGroupID string   `mapstructure:"email_group_id"`
 }
 
 func Init(filepath string) (err error) {

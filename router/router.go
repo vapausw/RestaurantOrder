@@ -5,6 +5,7 @@ import (
 	"RestaurantOrder/middleware"
 	"github.com/gin-gonic/gin"
 	"net/http"
+	"time"
 )
 
 func Init(mode string) *gin.Engine {
@@ -13,6 +14,7 @@ func Init(mode string) *gin.Engine {
 	}
 	r := gin.Default()
 	r.Use(middleware.GinLogger(), middleware.GinRecovery(true))
+	r.Use(middleware.RateLimitMiddleware(time.Second, 100, 100))
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, "pong")
 	})
