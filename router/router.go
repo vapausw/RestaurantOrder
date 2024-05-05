@@ -2,49 +2,61 @@ package router
 
 import (
 	"RestaurantOrder/controller"
-	"RestaurantOrder/log"
+	"RestaurantOrder/middleware"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
-func SetupRouter() *gin.Engine {
+func Init(mode string) *gin.Engine {
+	if mode != "debug" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	r := gin.Default()
-	r.Use(log.GinLogger(), log.GinRecovery(true))
-	// 静态文件处理
-	r.Static("/static", "static")
-	// 加载模板文件
-	r.LoadHTMLGlob("templates/*")
-	// 分组，分为用户以及商户两组
-	// 用户组
-	userGroup := r.Group("/user")
+	r.Use(middleware.GinLogger(), middleware.GinRecovery(true))
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, "pong")
+	})
+	r.POST("/user/login", controller.UserLoginHandler)
+	r.POST("/user/send_code", controller.UserSendCodeHandler)
+	r.POST("/user/register", controller.UserRegisterHandler)
+	shopGroup := r.Group("/shop")
 	{
-		userGroup.GET("/login", controller.GETLoginHandler)         // 登录
-		userGroup.POST("/login", controller.POSTLoginHandler)       // 登录验证
-		userGroup.GET("/register", controller.GETRegisterHandler)   // 注册
-		userGroup.POST("/register", controller.POSTRegisterHandler) // 注册流程
-		userIndex := userGroup.Group("/index")
-		{
-			userIndex.GET("/", controller.GETIndexHandler)
-			userIndex.GET("/menu", controller.GETMenuHandler)   // 查看菜单
-			userIndex.POST("menu", controller.CPOSTMenuHandler) // 点餐
-			userIndex.GET("/order", controller.GETOrderHandler) // 查看订单
-		}
+		shopGroup.GET("/info", controller.GetShopListHandler)          // 获取商店列表
+		shopGroup.GET("/:id", controller.GetShopHandler)               // 获取商店详细信息
+		shopGroup.GET("/:id/menu", controller.GetMenuListHandler)      // 获取某一个店家菜单列表
+		shopGroup.GET("/:id/menu/:menu_id", controller.GetMenuHandler) // 获取某一个店家菜单详情
 	}
-	// 商户组
-	merchantGroup := r.Group("/merchant")
+	userGroup := r.Group("/user").Use(middleware.JWTAuthMiddleware())
 	{
-		merchantGroup.GET("/login", controller.GETLoginHandler)
-		merchantGroup.POST("/login", controller.POSTLoginHandler)       // 登录验证
-		merchantGroup.GET("/register", controller.GETRegisterHandler)   // 注册
-		merchantGroup.POST("/register", controller.POSTRegisterHandler) // 注册流程
-		merchantIndex := merchantGroup.Group("/index")
-		{
-			merchantIndex.GET("/", controller.GETIndexHandler)
-			merchantIndex.GET("/menu", controller.GETMenuHandler)            // 查看所有菜品
-			merchantIndex.POST("menu", controller.MPOSTMenuHandler)          // 添加菜品
-			merchantIndex.PUT("/menu/:id", controller.MPUTMenuHandler)       // 更新菜品
-			merchantIndex.DELETE("/menu/:id", controller.MDELETEMenuHandler) // 删除菜品
-			merchantIndex.GET("/order", controller.GETOrderHandler)          // 查看所有订单信息
-		}
+		// 思考一下用户购物的逻辑...,首先将其添加到购物车，然后去付款，两个接口
+		// 也可以选择直接购买，默认直接添加购物车跳转到购买界面，一个接口
+		// 购物车添加逻辑，前端直接发送购物车添加请求，后端直接添加到购物车
+		// 购物车数据添加到那？redis，mysql
+		// 或者开启一个定时任务，将购物车数据添加到mysql中
+		// 添加用户添加商品到购物车的逻辑
+		userGroup.POST("/cart/menu", controller.AddCartHandler)
+		// 查看购物车的逻辑
+		userGroup.GET("/cart/menu", controller.CartInfoHandler)
+		// 使用购物车结款
+		userGroup.POST("/cart/buy", controller.CartBuyHandler)
 	}
+	// 商户管理模块，主要就是对menu的控制
+	r.POST("/merchant/login", controller.MerchantLoginHandler)
+	r.POST("/merchant/send_code", controller.MerchantSendCodeHandler)
+	r.POST("/merchant/register", controller.MerchantRegisterHandler)
+	merchantGroup := r.Group("/merchant").Use(middleware.JWTAuthMiddleware())
+	{
+		// 商家信息的完善，不完善将不会展示给用户
+		merchantGroup.POST("/info", controller.MerchantInfoHandler)
+		// 商户对于自己的menu的CRUD操作
+		merchantGroup.POST("/menu", controller.AddMenuHandler)
+		merchantGroup.PUT("/menu", controller.UpdateMenuHandler)
+		merchantGroup.DELETE("/menu", controller.DeleteMenuHandler)
+	}
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"msg": "404 Not Found",
+		})
+	})
 	return r
 }

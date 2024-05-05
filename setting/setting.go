@@ -1,48 +1,81 @@
 package setting
 
 import (
-	"gopkg.in/ini.v1"
+	"fmt"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
 )
 
 var Conf = new(AppConfig)
 
 type AppConfig struct {
-	Release        bool `ini:"release"`
-	Port           int  `ini:"port"`
-	*MySQLConfig   `ini:"mysql"`
-	*MyEmailConfig `ini:"email"`
-	*RedisConfig   `ini:"redis"`
-	*LogConfig     `ini:"logger"`
+	AppName        string `mapstructure:"name"`
+	Port           int    `mapstructure:"port"`
+	Version        string `mapstructure:"version"`
+	Mode           string `mapstructure:"mode"`
+	StartTime      string `mapstructure:"start_time"`
+	MachineID      int64  `mapstructure:"machine_id"`
+	*MySQLConfig   `mapstructure:"mysql"`
+	*MyEmailConfig `mapstructure:"email"`
+	*RedisConfig   `mapstructure:"redis"`
+	*LogConfig     `mapstructure:"log"`
+	*MyKafkaConfig `mapstructure:"kafka"`
 }
 
 type MyEmailConfig struct {
-	Email    string `ini:"email"`
-	Password string `ini:"password"`
-}
-
-type MySQLConfig struct {
-	User     string `ini:"user"`
-	Password string `ini:"password"`
-	DB       string `ini:"db"`
-	Host     string `ini:"host"`
-	Port     int    `ini:"port"`
-}
-
-type RedisConfig struct {
-	Addr     string `ini:"addr"`
-	Password string `ini:"password"`
-	DB       int    `ini:"db"`
-	PoolSize int    `ini:"pool_size"`
+	Email    string `mapstructure:"email"`
+	Password string `mapstructure:"password"`
+	SmtpHost string `mapstructure:"smtp_host"`
+	SmtpPort string `mapstructure:"smtp_port"`
 }
 
 type LogConfig struct {
-	Level      string `ini:"level"`
-	Filename   string `ini:"filename"`
-	MaxSize    int    `ini:"maxsize"`
-	MaxAge     int    `ini:"max_age"`
-	MaxBackups int    `ini:"max_backups"`
+	Level      string `mapstructure:"level"`
+	Filename   string `mapstructure:"filename"`
+	MaxSize    int    `mapstructure:"max_size"`
+	MaxBackups int    `mapstructure:"max_backups"`
+	MaxAge     int    `mapstructure:"max_age"`
 }
 
-func Init(file string) error {
-	return ini.MapTo(Conf, file)
+type MySQLConfig struct {
+	Username     string `mapstructure:"user_name"`
+	Password     string `mapstructure:"password"`
+	Host         string `mapstructure:"host"`
+	Port         int    `mapstructure:"port"`
+	DbName       string `mapstructure:"db_name"`
+	MaxOpenConns int    `mapstructure:"max_open_conns"`
+	MaxIdleConns int    `mapstructure:"max_idle_conns"`
+}
+
+type RedisConfig struct {
+	Addr     string `mapstructure:"addr"`
+	Password string `mapstructure:"password"`
+	Db       int    `mapstructure:"db"`
+	PoolSize int    `mapstructure:"pool_size"`
+}
+
+type MyKafkaConfig struct {
+	Brokers []string `mapstructure:"brokers"`
+}
+
+func Init(filepath string) (err error) {
+	viper.SetConfigFile(filepath)
+	err = viper.ReadInConfig()
+	if err != nil {
+		fmt.Printf("viper.ReadInConfig failed, err:%v\n", err)
+		return
+	}
+	if err = viper.Unmarshal(Conf); err != nil {
+		fmt.Printf("viper.Unmarshal failed, err:%v\n", err)
+		return
+	}
+	viper.WatchConfig()
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		fmt.Println("config.yaml has been changed")
+		if err = viper.Unmarshal(Conf); err != nil {
+			fmt.Printf("viper.Unmarshal failed, err:%v\n", err)
+			return
+		}
+	})
+	return
 }

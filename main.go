@@ -1,82 +1,83 @@
 package main
 
 import (
-	"RestaurantOrder/dao"
+	"RestaurantOrder/dao/mysql"
+	"RestaurantOrder/dao/redis"
 	"RestaurantOrder/log"
-	"RestaurantOrder/models"
+	"RestaurantOrder/pkg/snowflake"
 	"RestaurantOrder/router"
 	"RestaurantOrder/setting"
+	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"go.uber.org/zap"
+	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
-const defaultConfFile = "./conf/config.ini"
-
 func main() {
-	confFile := defaultConfFile
-	if len(os.Args) > 2 {
-		fmt.Println("use specified conf file: ", os.Args[1])
-		confFile = os.Args[1]
-	} else {
-		fmt.Println("no configuration file was specified, use ./conf/config.ini")
-	}
-	// 加载配置文件
-	if err := setting.Init(confFile); err != nil {
-		fmt.Printf("load config from file failed, err:%v\n", err)
+	var filepath string
+	flag.StringVar(&filepath, "f", "./conf/config.yaml", "配置信息文件路径")
+	// 初始化配置信息
+	if err := setting.Init(filepath); err != nil {
+		fmt.Printf("init setting failed, err:%v\n", err)
 		return
 	}
-	// 创建数据库
-	// sql: CREATE DATABASE restaurant;
-	// 连接数据库
-	err := dao.InitMySQL(setting.Conf.MySQLConfig)
-	if err != nil {
+	// 初始化日志
+	if err := log.Init(setting.Conf.LogConfig, setting.Conf.Mode); err != nil {
+		fmt.Printf("init log failed, err:%v\n", err)
+		return
+	}
+	defer zap.L().Sync()
+	// 初始化数据库
+	if err := mysql.Init(setting.Conf.MySQLConfig); err != nil {
 		fmt.Printf("init mysql failed, err:%v\n", err)
 		return
 	}
-	// 模型绑定
-	dao.DB.AutoMigrate(&models.Customer{}, &models.Merchant{}, &models.Order{},
-		&models.OrderItem{}, &models.Product{}, &models.PaymentInfo{})
-	defer dao.MySQLClose()
-	dao.InitRedis(setting.Conf.RedisConfig)
-	defer dao.RdbClose()
-	/*
-		mysql 数据库用于存放一些用户的基础信息
-		redis 数据库主要存放需要进行排序的信息以及令牌信息
-	*/
-	// 初始化日志记录器
-	if err = log.InitLogger(setting.Conf.LogConfig); err != nil {
-		zap.L().Error("init logger failed", zap.Error(err))
-		fmt.Printf("init logger failed, err:%v\n", err)
+	defer mysql.Close()
+	if err := redis.Init(setting.Conf.RedisConfig); err != nil {
+		fmt.Printf("init redis failed, err:%v\n", err)
 		return
 	}
-	//启动 HTTP 池, 用于节点间通信
-	//peers := groupcache.NewHTTPPool("http://myserver:8000")
-	//peers.Set("http://myserver:8000", "http://otherserver:8000")
-	// 注册路由
-	r := router.SetupRouter()
-	if err := r.Run(fmt.Sprintf(":%d", setting.Conf.Port)); err != nil {
-		fmt.Printf("server startup failed, err:%v\n", err)
+	defer redis.Close()
+	// 雪花生成ID算法初始化
+	if err := snowflake.Init(setting.Conf.StartTime, setting.Conf.MachineID); err != nil {
+		zap.L().Error("init failed, err: %v\n", zap.Error(err))
+		return
 	}
+	// 注册路由
+	// 初始化路由
+	r := router.Init(setting.Conf.Mode)
+	// 优雅关机
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", setting.Conf.Port),
+		Handler: r,
+	}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			zap.L().Fatal("listen: %s\n", zap.Error(err))
+		}
+	}()
+	// 等待中断信号来优雅地关闭服务器，为关闭服务器操作设置一个10秒的超时
+	quit := make(chan os.Signal, 1) // 创建一个接收信号的通道
+	// kill 默认会发送 syscall.SIGTERM 信号
+	// kill -2 发送 syscall.SIGINT 信号，我们常用的Ctrl+C就是触发系统SIGINT信号
+	// kill -9 发送 syscall.SIGKILL 信号，但是不能被捕获，所以不需要添加它
+	// signal.Notify把收到的 syscall.SIGINT或syscall.SIGTERM 信号转发给quit
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM) // 此处不会阻塞
+	<-quit                                               // 阻塞在此，当接收到上述两种信号时才会往下执行
+	zap.L().Info("Shutdown Server ...")
+	// 创建一个10秒超时的context
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// 10秒内优雅关闭服务（将未处理完的请求处理完再关闭服务），超过10秒就超时退出
+	if err := srv.Shutdown(ctx); err != nil {
+		zap.L().Fatal("Server Shutdown: ", zap.Error(err))
+	}
+	zap.L().Info("Server exiting")
+
 }
-
-/*
-port = 9090
-release = false
-[email]
-email = //输入你自己的邮箱
-password = // 需要开启SMTP服务
-
-[mysql]
-user =
-password =
-host =
-port =
-db =
-
-[redis]
-addr =
-password = ""
-db = 0
-pool_size = 20 //链接池数量
-*/
