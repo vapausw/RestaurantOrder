@@ -60,7 +60,7 @@ func StartEmailConsumer(ctx context.Context) {
 			continue
 		}
 
-		// 使用你的邮件发送逻辑
+		// 发送邮件
 		err = smtp.SendEmail(msg.Email, []byte(msg.Message))
 		if err != nil {
 			zap.L().Error("failed to send email", zap.Error(err))

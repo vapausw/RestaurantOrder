@@ -17,7 +17,7 @@ import (
 
 // GenValidateCode 生成一个安全的随机令牌，长度为 16 位，由大小写字母和数字组成
 func GenValidateCode() string {
-	// 定义令牌的字节长度，base32 编码每5个比特表示一个字符，因此对于8个字符，我们需要5*16/8=10个字节
+	// 定义令牌的字节长度，base32 编码每5个比特表示一个字符，因此对于8个字符，需要5*16/8=10个字节
 	tokenLength := 10
 	b := make([]byte, tokenLength)
 	_, err := rand.Read(b)
@@ -25,8 +25,7 @@ func GenValidateCode() string {
 		log.Fatalf("Failed to generate random token: %v", err)
 	}
 	// 使用 base32 编码生成令牌，然后取前16位作为结果
-	// 注意：这里使用了 base32，因为它比 base64 更容易产生人类可读的字符（大小写字母和数字）
-	// 但由于输出会更长，我们只取前16个字符
+	// 只取前16个字符
 	token := base32.StdEncoding.EncodeToString(b)[:16]
 	return token
 }
@@ -45,7 +44,6 @@ func CheckPasswordHash(password, hash string) bool {
 
 // ValidateEmail 使用正则表达式检验邮箱格式
 func ValidateEmail(email string) bool {
-	// 这个正则表达式用于匹配大多数电子邮件格式
 	/*
 		^[a-z0-9._%+-]+：邮箱用户名部分，允许小写字母、数字、点、下划线、百分号、加号和减号。
 		@：必须包含一个@符号。
@@ -57,7 +55,7 @@ func ValidateEmail(email string) bool {
 	return re.MatchString(email)
 }
 
-// GetRandomExpirationInSeconds 生成一个随机的过期时间，线程安全
+// GetRandomExpirationInSeconds 生成一个随机的过期时间
 // minSeconds 和 maxSeconds 定义生成随机秒数的范围
 func GetRandomExpirationInSeconds(minSeconds, maxSeconds int) time.Duration {
 	randGen := mr.New(mr.NewSource(time.Now().UnixNano())) //

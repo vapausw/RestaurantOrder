@@ -6,10 +6,10 @@ import (
 	"RestaurantOrder/dao/redis"
 	"RestaurantOrder/model"
 	"RestaurantOrder/pkg/util"
-	"errors"
 	"fmt"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 )
 
 type CacheShop struct {
@@ -17,18 +17,15 @@ type CacheShop struct {
 }
 
 func (c *CacheShop) RedisGet(key string) (interface{}, error) {
-	keys := fmt.Sprintf("%s%s", co.RedisShopKey, key)
-	return redis.GetShop(keys)
+	return redis.GetShop(key)
 }
 
 func (c *CacheShop) RedisSet(key string, value interface{}) error {
-	keys := fmt.Sprintf("%s%s", co.RedisShopKey, key)
-	return redis.SetShop(keys, value.(model.Shop), util.GetRandomExpirationInSeconds(1800, 3600))
+	return redis.SetShop(key, value.(string), util.GetRandomExpirationInSeconds(1800, 3600))
 }
 
 func (c *CacheShop) RedisDel(key string) error {
-	keys := fmt.Sprintf("%s%s", co.RedisShopKey, key)
-	return redis.DelShop(keys)
+	return redis.DelShop(key)
 }
 
 func (c *CacheShop) MysqlGet(key string) (interface{}, error) {
@@ -36,165 +33,144 @@ func (c *CacheShop) MysqlGet(key string) (interface{}, error) {
 }
 
 func (c *CacheShop) MysqlSet(key string, value interface{}) error {
-	return mysql.UpdateShopToDB(value.(model.Shop))
+	return mysql.UpdateShopToDB(value.(string))
 }
 
 func (c *CacheShop) BadData() interface{} {
-	return model.Shop{
-		ShopName: co.BadData,
-	}
+	return co.BadData
 }
 
 func GetShop(id int) (model.Shop, error) {
-	cache_shop := new(CacheShop)
-	data, err := GetDataFromCache(cache_shop, strconv.Itoa(id))
+	key := fmt.Sprintf("%s%s", co.RedisShopKey, strconv.Itoa(id))
+	da, err := GetDataFromCache(new(CacheShop), key)
+	var data model.Shop
+	err = util.Deserialize(da.(string), &data)
 	if err != nil {
-		return model.Shop{}, err
+		return data, err
 	}
-	return data.(model.Shop), nil
+	return data, nil
 }
 
-//func GetShop(id int) (*model.Shop, error) {
-//	// 从缓存中获取商店信息
-//	shop := redis.GetShop(id)
-//	if shop == co.BadData {
-//		return nil, co.ErrNotFound
-//	}
-//	if len(shop) == 0 {
-//		// 从数据库中获取商店信息
-//		mshop, err := mysql.GetShopFromDB(id)
-//		//zap.L().Info("mysql.GetShopFromDB", zap.Any("mshop", mshop))
-//		if err != nil {
-//			if errors.Is(err, co.ErrNotFound) {
-//				// 将缓存中的数据设置为空，防止缓存穿透
-//				err = redis.SetShop(id, co.BadData, util.GetRandomExpirationInSeconds(1800, 3600))
-//				return &mshop, co.ErrNotFound
-//			}
-//			return &mshop, co.ErrServerBusy
-//		}
-//		// 将结构体序列化为字符串
-//		da, _ := util.Serialize(mshop)
-//		//zap.L().Info("util.Serialize", zap.Any("da", da))
-//		// 将商店信息缓存起来
-//		err = redis.SetShop(id, da, util.GetRandomExpirationInSeconds(1800, 3600))
-//		if err != nil {
-//			zap.L().Error("redis.SetShop failed", zap.Error(err))
-//			return &mshop, co.ErrServerBusy
-//		}
-//		return &mshop, nil
-//	}
-//	var da model.Shop
-//	err := util.Deserialize(shop, &da)
-//	if err != nil {
-//		return &da, err
-//	}
-//	return &da, nil
-//}
+type CacheShopList struct {
+	*model.ShopList
+}
 
+func (c *CacheShopList) RedisGet(key string) (interface{}, error) {
+	return redis.GetShopList(key)
+}
+
+func (c *CacheShopList) RedisSet(key string, value interface{}) error {
+	return redis.SetShopList(key, value.([]string), util.GetRandomExpirationInSeconds(1800, 3600))
+}
+
+func (c *CacheShopList) RedisDel(key string) error {
+	return redis.DelShopList(key)
+}
+
+func (c *CacheShopList) MysqlGet(key string) (interface{}, error) {
+	return mysql.GetShopListFromDB()
+}
+
+func (c *CacheShopList) MysqlSet(key string, value interface{}) error {
+	return nil
+}
+
+func (c *CacheShopList) BadData() interface{} {
+	return []string{co.BadData}
+}
 func GetShopList() ([]model.ShopList, error) {
-	// 从缓存中获取商店信息
-	shops := redis.GetShopList(co.RedisShopListKey)
-	if len(shops) > 0 && shops[0] == co.BadData {
-		return nil, co.ErrNotFound
-	}
-	if len(shops) == 0 {
-		// 从数据库中获取商店信息
-		mshops, err := mysql.GetShopListFromDB()
-		if err != nil {
-			if errors.Is(err, co.ErrNotFound) {
-				// 将缓存中的数据设置为空，防止缓存穿透
-				err = redis.SetShopList(co.RedisShopListKey, []string{co.BadData}, util.GetRandomExpirationInSeconds(1800, 3600))
-				return nil, co.ErrNotFound
-			}
-			return nil, co.ErrServerBusy
-		}
-		// 将结构体数组序列化为字符串数组
-		da, _ := util.SerializeShops(mshops)
-		// 将商店信息缓存起来
-		err = redis.SetShopList(co.RedisShopListKey, da, util.GetRandomExpirationInSeconds(1800, 3600))
-		if err != nil {
-			zap.L().Error("redis.SetShopList failed", zap.Error(err))
-			return nil, co.ErrServerBusy
-		}
-		return mshops, nil
-	}
+	da, err := GetDataFromCache(new(CacheShopList), co.RedisShopListKey)
 	var data []model.ShopList
-	err := util.DeserializeShops(shops, &data)
+	err = util.DeserializeShops(da.([]string), &data)
 	if err != nil {
 		return nil, err
 	}
 	return data, nil
+}
+
+type CacheShopMenuList struct {
+	*model.MenuList
+}
+
+func (c *CacheShopMenuList) RedisGet(key string) (interface{}, error) {
+	return redis.GetShopMenuList(key)
+}
+
+func (c *CacheShopMenuList) RedisSet(key string, value interface{}) error {
+	return redis.SetShopMenuList(key, value.([]string), util.GetRandomExpirationInSeconds(1800, 3600))
+}
+
+func (c *CacheShopMenuList) RedisDel(key string) error {
+	return nil
+}
+
+func (c *CacheShopMenuList) MysqlGet(key string) (interface{}, error) {
+	return mysql.GetShopMenuListFromDB(key)
+}
+
+func (c *CacheShopMenuList) MysqlSet(key string, value interface{}) error {
+	return nil
+}
+
+func (c *CacheShopMenuList) BadData() interface{} {
+	return []string{co.BadData}
 }
 
 func GetShopMenuList(id int) ([]model.MenuList, error) {
-	// 从缓存中获取商店信息
-	menus := redis.GetShopMenuList(id)
-	if len(menus) > 0 && menus[0] == co.BadData {
-		return nil, co.ErrNotFound
-	}
-	if len(menus) == 0 {
-		// 从数据库中获取商店信息
-		m_menus, err := mysql.GetShopMenuListFromDB(id)
-		if err != nil {
-			if errors.Is(err, co.ErrNotFound) {
-				// 将缓存中的数据设置为空，防止缓存穿透
-				err = redis.SetShopMenuList(id, []string{co.BadData}, util.GetRandomExpirationInSeconds(1800, 3600))
-				return nil, co.ErrNotFound
-			}
-			return nil, co.ErrServerBusy
-		}
-		// 将结构体数组序列化为字符串数组
-		da, _ := util.SerializeMenus(m_menus)
-		// 将商店信息缓存起来
-		err = redis.SetShopMenuList(id, da, util.GetRandomExpirationInSeconds(1800, 3600))
-		if err != nil {
-			zap.L().Error("redis.SetShopList failed", zap.Error(err))
-			return nil, co.ErrServerBusy
-		}
-		return m_menus, nil
-	}
-	var data []model.MenuList
-	err := util.DeserializeShopMenus(menus, &data)
+	key := strings.Join([]string{co.RedisShopMenuListKey, strconv.Itoa(id)}, "")
+	da, err := GetDataFromCache(new(CacheShopMenuList), key)
 	if err != nil {
 		return nil, err
+	}
+	var data []model.MenuList
+	err = util.DeserializeShopMenus(da.([]string), &data)
+	if err != nil {
+		zap.L().Error("util.DeserializeShopMenus failed", zap.Error(err))
+		return nil, co.ErrServerBusy
 	}
 	return data, nil
 }
 
-func GetShopMenu(id int, idInt int) (model.Menu, error) {
-	// 从缓存中获取商店信息
-	menu := redis.GetShopMenu(id, idInt)
-	if menu == co.BadData {
-		return model.Menu{}, co.ErrNotFound
-	}
-	//zap.L().Info("redis.GetShopMenu", zap.Any("menu", menu))
-	if len(menu) == 0 {
-		// 从数据库中获取商店信息
-		m_menu, err := mysql.GetShopMenuFromDB(id, idInt)
-		//zap.L().Info("mysql.GetShopMenuFromDB", zap.Any("m_menu", m_menu))
-		if err != nil {
-			if errors.Is(err, co.ErrNotFound) {
-				// 将缓存中的数据设置为空，防止缓存穿透
-				err = redis.SetShopMenu(id, idInt, co.BadData, util.GetRandomExpirationInSeconds(1800, 3600))
-				return m_menu, co.ErrNotFound
-			}
-			return m_menu, co.ErrServerBusy
-		}
-		// 将结构体序列化为字符串
-		da, _ := util.Serialize(m_menu)
-		//zap.L().Info("util.Serialize", zap.Any("da", da))
-		// 将商店信息缓存起来
-		err = redis.SetShopMenu(id, idInt, da, util.GetRandomExpirationInSeconds(1800, 3600))
-		if err != nil {
-			zap.L().Error("redis.SetShop failed", zap.Error(err))
-			return m_menu, co.ErrServerBusy
-		}
-		return m_menu, nil
-	}
-	var da model.Menu
-	err := util.Deserialize(menu, &da)
+// CacheShopMenu 获取一个店家的某一个菜品的详情
+type CacheShopMenu struct {
+	*model.Menu
+}
+
+func (c *CacheShopMenu) RedisGet(key string) (interface{}, error) {
+	return redis.GetShopMenu(key)
+}
+
+func (c *CacheShopMenu) RedisSet(key string, value interface{}) error {
+	return redis.SetShopMenu(key, value.(string), util.GetRandomExpirationInSeconds(1800, 3600))
+}
+
+func (c *CacheShopMenu) RedisDel(key string) error {
+	return nil
+}
+
+func (c *CacheShopMenu) MysqlGet(key string) (interface{}, error) {
+	return mysql.GetShopMenuFromDB(key)
+}
+
+func (c *CacheShopMenu) MysqlSet(key string, value interface{}) error {
+	return nil
+}
+
+func (c *CacheShopMenu) BadData() interface{} {
+	return co.BadData
+}
+
+func GetShopMenu(shopID int, MenuID int) (model.Menu, error) {
+	key := strings.Join([]string{co.RedisShopMenuKey, strconv.Itoa(shopID), ":menu:", strconv.Itoa(MenuID)}, "")
+	da, err := GetDataFromCache(new(CacheShopMenu), key)
 	if err != nil {
-		return da, err
+		return model.Menu{}, err
 	}
-	return da, nil
+	var data model.Menu
+	err = util.Deserialize(da.(string), &data)
+	if err != nil {
+		zap.L().Error("util.Deserialize failed", zap.Error(err))
+		return data, co.ErrServerBusy
+	}
+	return data, nil
 }

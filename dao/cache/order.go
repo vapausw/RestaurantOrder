@@ -23,7 +23,7 @@ func CreateOrder(info []*model.CartInfo) error {
 			return co.ErrServerBusy
 		}
 		// 将订单详细信息存储到redis中
-		if err := redis.SetOrderInfo(order.OrderID, menu); err != nil {
+		if err := redis.SetOrderInfo(order.UserID, order.OrderID, menu); err != nil {
 			return co.ErrServerBusy
 		}
 	}

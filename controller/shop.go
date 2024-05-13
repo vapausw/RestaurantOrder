@@ -36,7 +36,7 @@ func GetShopHandler(c *gin.Context) {
 func GetMenuListHandler(c *gin.Context) {
 	id := c.Param("id")
 	shopId, err := strconv.Atoi(id)
-	zap.L().Info("shop_id", zap.Any("shop_id", shopId))
+	//zap.L().Info("shop_id", zap.Any("shop_id", shopId))
 	if err != nil {
 		zap.L().Error("invalid shop_id", zap.String("id", id))
 		responseErrorWithMsg(c, co.CodeInvalidParam, co.ErrInvalidParam.Error())

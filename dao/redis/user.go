@@ -11,28 +11,28 @@ import (
 	"time"
 )
 
-func GetUserPassword(email string) (user *model.UserLogin, err error) {
+func GetUserPassword(email string) (user *model.User, err error) {
 	key := strings.Join([]string{co.RedisUserPasswordKey, email}, "")
 	data, err := rdb.HGetAll(key).Result()
 	if err != nil {
 		zap.L().Error("rdb.Get(key).Result() failed", zap.Error(err))
-		return &model.UserLogin{}, co.ErrServerBusy
+		return &model.User{}, co.ErrServerBusy
 	}
 	if len(data) == 0 {
-		return &model.UserLogin{}, co.ErrNotFound
+		return &model.User{}, co.ErrNotFound
 	}
-	user = new(model.UserLogin)
+	user = new(model.User)
 	err = util.MapToStruct(data, user)
 	if err != nil {
 		zap.L().Error("util.MapToStruct(data, &cart) failed", zap.Error(err))
-		return &model.UserLogin{}, co.ErrServerBusy
+		return &model.User{}, co.ErrServerBusy
 	}
 	if user.Password == co.BadData {
-		return &model.UserLogin{}, co.ErrBadRedisData
+		return &model.User{}, co.ErrBadRedisData
 	}
 	return
 }
-func SetUserPassword(email string, user *model.UserLogin, expiration time.Duration) error {
+func SetUserPassword(email string, user *model.User, expiration time.Duration) error {
 	// 拼接key
 	key := strings.Join([]string{co.RedisUserPasswordKey, email}, "")
 	// 存储到redis

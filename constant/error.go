@@ -15,4 +15,5 @@ var (
 	ErrStockNotEnough = errors.New("库存不足")
 	ErrExistsData     = errors.New("数据已存在")
 	ErrBadRedisData   = errors.New("该数据为防止缓存穿透的坏数据")
+	ErrFormat         = errors.New("token格式错误")
 )

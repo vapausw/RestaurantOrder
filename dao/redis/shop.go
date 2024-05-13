@@ -2,18 +2,24 @@ package redis
 
 import (
 	co "RestaurantOrder/constant"
-	"RestaurantOrder/model"
-	"RestaurantOrder/pkg/util"
 	"errors"
 	"github.com/go-redis/redis"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
 	"time"
 )
 
-func GetShopList(key string) []string {
-	return rdb.LRange(key, 0, -1).Val()
+func GetShopList(key string) ([]string, error) {
+	res, err := rdb.LRange(key, 0, -1).Result()
+	if errors.Is(err, redis.Nil) || len(res) == 0 {
+		return nil, co.ErrNotFound
+
+	} else if err != nil {
+		zap.L().Error("redis.GetShopList failed", zap.Error(err))
+		return nil, co.ErrServerBusy
+	} else if res[0] == co.BadData {
+		return nil, co.ErrBadRedisData
+	}
+	return res, err
 }
 
 func SetShopList(key string, shops []string, seconds time.Duration) error {
@@ -21,51 +27,72 @@ func SetShopList(key string, shops []string, seconds time.Duration) error {
 	return rdb.Expire(key, seconds).Err()
 }
 
-func GetShopMenu(sID int, mID int) string {
-	key := strings.Join([]string{co.RedisShopMenuKey, strconv.Itoa(sID), "menu:", strconv.Itoa(mID)}, "")
-	return rdb.Get(key).Val()
+func DelShopList(key string) error {
+	err := rdb.Del(key).Err()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil
+		}
+		zap.L().Error("redis.DelShopList failed", zap.Error(err))
+		return co.ErrServerBusy
+	}
+	return nil
 }
 
-func SetShopMenu(id, idInt int, s string, seconds time.Duration) error {
-	key := strings.Join([]string{co.RedisShopMenuKey, strconv.Itoa(id), "menu:", strconv.Itoa(idInt)}, "")
+func GetShopMenu(key string) (string, error) {
+	res, err := rdb.Get(key).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", co.ErrNotFound
+	}
+	if err != nil {
+		zap.L().Error("redis.GetShopMenu failed", zap.Error(err))
+		return "", co.ErrServerBusy
+	}
+	if res == co.BadData {
+		return "", co.ErrBadRedisData
+	}
+	return res, nil
+}
+
+func SetShopMenu(key, s string, seconds time.Duration) error {
 	return rdb.Set(key, s, seconds).Err()
 }
 
-func GetShopMenuList(id int) []string {
-	key := strings.Join([]string{co.RedisShopMenuListKey, strconv.Itoa(id)}, "")
-	return rdb.LRange(key, 0, -1).Val()
+func GetShopMenuList(key string) ([]string, error) {
+	res, err := rdb.LRange(key, 0, -1).Result()
+	if errors.Is(err, redis.Nil) || len(res) == 0 {
+		return nil, co.ErrNotFound
+	}
+	if err != nil {
+		zap.L().Error("redis.GetShopMenuList failed", zap.Error(err))
+		return nil, co.ErrServerBusy
+	}
+	if res[0] == co.BadData {
+		return nil, co.ErrBadRedisData
+	}
+	return res, nil
 }
 
-func SetShopMenuList(id int, menus []string, seconds time.Duration) error {
-	key := strings.Join([]string{co.RedisShopMenuListKey, strconv.Itoa(id)}, "")
+func SetShopMenuList(key string, menus []string, seconds time.Duration) error {
 	rdb.RPush(key, menus)
 	return rdb.Expire(key, seconds).Err()
 }
 
-func GetShop(key string) (model.Shop, error) {
-	res := rdb.Get(key).Val()
-	if len(res) == 0 {
-		return model.Shop{}, co.ErrNotFound
+func GetShop(key string) (string, error) {
+	res, err := rdb.Get(key).Result()
+	if errors.Is(err, redis.Nil) {
+		return res, co.ErrNotFound
+	} else if err != nil {
+		zap.L().Error("redis.GetShop failed", zap.Error(err))
+		return res, co.ErrServerBusy
+	} else if res == co.BadData {
+		return res, co.ErrBadRedisData
 	}
-	var da model.Shop
-	err := util.Deserialize(res, &da)
-	if err != nil {
-		zap.L().Error("util.Deserialize failed", zap.Error(err))
-		return da, co.ErrServerBusy
-	}
-	if da.ShopName == co.BadData {
-		return model.Shop{}, co.ErrBadRedisData
-	}
-	return da, nil
+	return res, nil
 }
 
-func SetShop(key string, shop model.Shop, seconds time.Duration) error {
-	da, err := util.Serialize(shop)
-	if err != nil {
-		zap.L().Error("util.Serialize failed", zap.Error(err))
-		return co.ErrServerBusy
-	}
-	err = rdb.Set(key, da, seconds).Err()
+func SetShop(key, da string, seconds time.Duration) error {
+	err := rdb.Set(key, da, seconds).Err()
 	if err != nil {
 		zap.L().Error("redis.SetShop failed", zap.Error(err))
 		return co.ErrServerBusy

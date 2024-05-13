@@ -51,10 +51,10 @@ func SendCode(email string) (err error, errCode co.MyCode) {
 	}
 	// 发送验证码，使用kafka异步发送
 	zap.L().Info("code", zap.String("code", code))
-	if err := sendEmail(email, tokenBody(code)); err != nil {
-		zap.L().Error("sendEmail token failed", zap.Error(err))
-		return co.ErrServerBusy, co.CodeServerBusy
-	}
+	//if err := sendEmail(email, tokenBody(code)); err != nil {
+	//	zap.L().Error("sendEmail token failed", zap.Error(err))
+	//	return co.ErrServerBusy, co.CodeServerBusy
+	//}
 	return nil, co.CodeSuccess
 }
 
@@ -93,10 +93,10 @@ func Register(u *model.User) (err error, errCode co.MyCode) {
 		return co.ErrServerBusy, co.CodeServerBusy
 	}
 	// 异步发送欢迎邮件
-	if err := sendEmail(u.Email, welcomeBody()); err != nil {
-		zap.L().Error("sendEmail welcome failed", zap.Error(err))
-		return co.ErrServerBusy, co.CodeServerBusy
-	}
+	//if err := sendEmail(u.Email, welcomeBody()); err != nil {
+	//	zap.L().Error("sendEmail welcome failed", zap.Error(err))
+	//	return co.ErrServerBusy, co.CodeServerBusy
+	//}
 	return nil, co.CodeSuccess
 }
 func emailHeader(email string) string {
@@ -153,4 +153,16 @@ func sendEmail(email, body string) error {
 	}
 	kafka.StartEmailProducer(msgBytes)
 	return nil
+}
+
+func GetUserInfo(id int64) (user model.User, err error, code co.MyCode) {
+	// 直接从数据库先读取
+	user, err = mysql.GetUserInfo(id)
+	if err != nil {
+		if errors.Is(err, co.ErrNotFound) {
+			return user, co.ErrNotFound, co.CodeNotFound
+		}
+		return user, co.ErrServerBusy, co.CodeServerBusy
+	}
+	return
 }

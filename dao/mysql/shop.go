@@ -3,13 +3,15 @@ package mysql
 import (
 	co "RestaurantOrder/constant"
 	"RestaurantOrder/model"
+	"RestaurantOrder/pkg/util"
 	"database/sql"
 	"errors"
 	"go.uber.org/zap"
 	"strconv"
 )
 
-func GetShopListFromDB() (shopList []model.ShopList, err error) {
+func GetShopListFromDB() (data []string, err error) {
+	shopList := make([]model.ShopList, 0, 100)
 	rows, err := db.Query(sqlGetShopList)
 	if err != nil {
 		return nil, co.ErrServerBusy
@@ -27,43 +29,84 @@ func GetShopListFromDB() (shopList []model.ShopList, err error) {
 	if len(shopList) == 0 {
 		return nil, co.ErrNotFound
 	}
+	data, err = util.SerializeShops(shopList)
+	if err != nil {
+		return nil, co.ErrServerBusy
+	}
 	return
 }
 
-func GetShopFromDB(id string) (data model.Shop, err error) {
-	// 根据商户id从数据库中获取详细信息
-	shop_id, err := strconv.Atoi(id)
-	if err != nil {
-		zap.L().Error("invalid shop_id", zap.String("id", id))
-		return data, co.ErrServerBusy
+func GetShopFromDB(key string) (da string, err error) {
+	var shopID int
+	for i := len(key) - 1; i >= 0; i-- {
+		if key[i] == ':' {
+			shopID, _ = strconv.Atoi(key[i+1:])
+			break
+		}
 	}
-	err = db.QueryRow(sqlGetShop, shop_id).Scan(&data.ShopName, &data.ShopAddr, &data.ShopPhone, &data.ShopDesc, &data.ShopId)
+	var data model.Shop
+	err = db.QueryRow(sqlGetShop, shopID).Scan(&data.ShopName, &data.ShopAddr, &data.ShopPhone, &data.ShopDesc, &data.ShopId)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return data, co.ErrNotFound
+			return "", co.ErrNotFound
 		}
 		zap.L().Error("db.QueryRow failed", zap.Error(err))
-		return data, co.ErrServerBusy
+		return "", co.ErrServerBusy
+	}
+	da, err = util.Serialize(data)
+	if err != nil {
+		zap.L().Error("util.Serialize failed", zap.Error(err))
+		return "", co.ErrServerBusy
 	}
 	return
 }
 
-func GetShopMenuFromDB(id int, idInt int) (model.Menu, error) {
+func GetShopMenuFromDB(key string) (string, error) {
+	var shopId, menuId int
+	for i := len(key) - 1; i >= 0; i-- {
+		if key[i] == ':' {
+			menuId, _ = strconv.Atoi(key[i+1:])
+			for j := i - 6; j >= 0; j-- {
+				if key[j] == ':' {
+					shopId, _ = strconv.Atoi(key[j+1 : i-5])
+					break
+				}
+			}
+			break
+		}
+	}
 	// 根据商户id和菜单id从数据库中获取详细信息
 	var shopMenu model.Menu
-	err := db.QueryRow(sqlGetShopMenu, id, idInt).Scan(&shopMenu.MenuID, &shopMenu.MenuName, &shopMenu.MenuPrice, &shopMenu.MenuDesc, &shopMenu.MenuStock)
+	err := db.QueryRow(sqlGetShopMenu, shopId, menuId).Scan(&shopMenu.MenuID, &shopMenu.MenuName, &shopMenu.MenuPrice, &shopMenu.MenuDesc, &shopMenu.MenuStock)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return shopMenu, co.ErrNotFound
+			return "", co.ErrNotFound
 		}
 		zap.L().Error("db.QueryRow failed", zap.Error(err))
-		return shopMenu, co.ErrServerBusy
+		return "", co.ErrServerBusy
 	}
-	return shopMenu, nil
+	data, err := util.Serialize(shopMenu)
+	if err != nil {
+		zap.L().Error("util.Serialize failed", zap.Error(err))
+		return "", co.ErrServerBusy
+	}
+	return data, nil
 
 }
 
-func GetShopMenuListFromDB(id int) ([]model.MenuList, error) {
+func GetShopMenuListFromDB(key string) ([]string, error) {
+	// 从key中获取id
+	for i := len(key) - 1; i >= 0; i-- {
+		if key[i] == ':' {
+			key = key[i+1:]
+			break
+		}
+	}
+	id, err := strconv.Atoi(key)
+	if err != nil {
+		zap.L().Error("invalid shop_id", zap.String("key", key))
+		return nil, co.ErrServerBusy
+	}
 	rows, err := db.Query(sqlGetShopMenuList, id)
 	if err != nil {
 		return nil, co.ErrServerBusy
@@ -82,10 +125,21 @@ func GetShopMenuListFromDB(id int) ([]model.MenuList, error) {
 	if len(shopMenuList) == 0 {
 		return nil, co.ErrNotFound
 	}
-	return shopMenuList, nil
+	data, err := util.SerializeMenus(shopMenuList)
+	if err != nil {
+		zap.L().Error("util.SerializeMenus failed", zap.Error(err))
+		return nil, co.ErrServerBusy
+	}
+	return data, nil
 }
 
-func UpdateShopToDB(m model.Shop) (err error) {
+func UpdateShopToDB(da string) (err error) {
+	var m model.Shop
+	err = util.Deserialize(da, &m)
+	if err != nil {
+		zap.L().Error("util.Deserialize failed", zap.Error(err))
+		return co.ErrServerBusy
+	}
 	// 直接更新数据即可
 	_, err = db.Exec(sqlUpdateShop, m.ShopName, m.ShopAddr, m.ShopPhone, m.ShopDesc)
 	if err != nil {

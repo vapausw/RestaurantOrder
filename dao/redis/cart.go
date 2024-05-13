@@ -4,7 +4,9 @@ import (
 	co "RestaurantOrder/constant"
 	"RestaurantOrder/model"
 	"RestaurantOrder/pkg/util"
+	"errors"
 	"fmt"
+	"github.com/go-redis/redis"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -41,6 +43,8 @@ func HSetCart(id int64, m *model.CartInfo) (err error) {
 		return co.ErrServerBusy
 	}
 	_, err = rdb.HMSet(key, data).Result()
+	// 异步将数据更新到mysql中保存
+	//go dao.AddCart(m)
 	return
 }
 
@@ -49,6 +53,18 @@ func HUpdateCart(id, menuID int64, count int) (err error) {
 	return rdb.HSet(key, "count", count).Err()
 }
 
+func HDelCart(user_id, menu_id int64) error {
+	key := strings.Join([]string{co.RedisCartKey, strconv.FormatInt(user_id, 10), co.RedisBaseChar, strconv.FormatInt(menu_id, 10)}, "")
+	err := rdb.Del(key).Err()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil
+		}
+		zap.L().Error("rdb.Del(key).Err() failed", zap.Error(err))
+		return co.ErrServerBusy
+	}
+	return nil
+}
 func HGetAllCart(id int64) (cartList []*model.CartInfo, err error) {
 	// 模糊匹配
 	keyPattern := fmt.Sprintf("%s%d%s*", co.RedisCartKey, id, co.RedisBaseChar)

@@ -20,6 +20,9 @@ create table `merchants` (
     merchant_password varchar(255) not null comment '商户密码'
 ) comment '商户表';
 
+insert into merchants(merchant_id, merchant_email, merchant_password) values (1, '13@qq.com', '123456');
+insert into merchants(merchant_id, merchant_email, merchant_password) values (2, '123@qq.com', '123456');
+
 drop table if exists shops;
 create table `shops`
 (

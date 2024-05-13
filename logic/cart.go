@@ -67,3 +67,17 @@ func CartBuy(info []*model.CartInfo) (error, co.MyCode) {
 	// 5. 返回成功响应
 	return nil, co.CodeSuccess
 }
+
+func UpdateCart(cart model.CartInfo) (error, co.MyCode) {
+	if err := redis.HUpdateCart(cart.UserID, cart.MenuID, cart.Count); err != nil {
+		return err, co.CodeServerBusy
+	}
+	return nil, co.CodeSuccess
+}
+
+func DeleteCart(user_id, menu_id int64) (error, co.MyCode) {
+	if err := redis.HDelCart(user_id, menu_id); err != nil {
+		return err, co.CodeServerBusy
+	}
+	return nil, co.CodeSuccess
+}

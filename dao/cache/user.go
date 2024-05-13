@@ -21,11 +21,11 @@ import (
 // 解决方案：设置不同的过期时间，让缓存失效的时间点尽量均匀
 
 type CacheUser struct {
-	model.UserLogin
+	model.User
 }
 
 func (c *CacheUser) RedisSet(key string, value interface{}) error {
-	return redis.SetUserPassword(key, value.(*model.UserLogin), util.GetRandomExpirationInSeconds(300, 600))
+	return redis.SetUserPassword(key, value.(*model.User), util.GetRandomExpirationInSeconds(300, 600))
 }
 func (c *CacheUser) RedisGet(key string) (interface{}, error) {
 	return redis.GetUserPassword(key)
@@ -37,22 +37,21 @@ func (c *CacheUser) MysqlGet(key string) (interface{}, error) {
 	return mysql.GetUserPasswordFromDB(key)
 }
 func (c *CacheUser) MysqlSet(key string, value interface{}) error {
-	return mysql.UpdateUserPassword(key, value.(*model.UserLogin))
+	return mysql.UpdateUserPassword(key, value.(*model.User))
 }
 func (c *CacheUser) BadData() interface{} {
-	return &model.UserLogin{
+	return &model.User{
 		Password: co.BadData,
 	}
 }
 
 // GetUserPassword 获取用户加密的密码用于登录验证
-func GetUserPassword(email string) (user *model.UserLogin, err error) {
-	cache_user := new(CacheUser)
-	data, err := GetDataFromCache(cache_user, email)
+func GetUserPassword(email string) (user *model.User, err error) {
+	data, err := GetDataFromCache(new(CacheUser), email)
 	if err != nil {
 		return nil, co.ErrServerBusy
 	}
-	user = data.(*model.UserLogin)
+	user = data.(*model.User)
 	return
 }
 
